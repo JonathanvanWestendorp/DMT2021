@@ -8,6 +8,17 @@ BASE_TIME = pd.Timestamp("2014-02-15")
 END_TIME = pd.Timestamp("2014-06-09")
 
 
+def window_split(x, window_size=5):
+    length = x.size(0)
+    splits = []
+
+    for slice_start in range(0, length - window_size + 1):
+        slice_end = slice_start + window_size
+        splits.append(x[slice_start:slice_end])
+
+    return torch.stack(splits[:-1])
+
+
 def process(data):
     inputs, targets = [], []
     data.time = pd.to_datetime(data.time)
@@ -22,15 +33,21 @@ def process(data):
             patient_feature_data = patient_data[patient_data.variable == feature].append(outer_rows)
 
             if feature == "mood":
-                patient_mood_grouped = patient_feature_data.resample('D', on='time')['value'].mean()
-                targets.append(patient_mood_grouped.iloc[1::5].tolist())
+                # Discard first 5 moods because there's not enough prior feature information for these
+                patient_mood_grouped = patient_feature_data.resample('D', on='time')['value'].mean()[5:]
+                targets.append(torch.tensor(patient_mood_grouped.tolist()))
             else:
-                patient_feature_grouped = patient_feature_data.resample('5D', on='time')['value'].mean()
+                patient_feature_grouped = patient_feature_data.resample('D', on='time')['value'].mean()
                 patient_inputs.append(patient_feature_grouped.tolist())
 
-        inputs.append(patient_inputs)
-    print(torch.tensor(targets))
-    print(torch.tensor(inputs).shape, torch.tensor(targets).shape)
+        inputs.append(window_split(torch.tensor(patient_inputs).T))
+
+    inputs = torch.cat(inputs)
+    targets = torch.cat(targets)
+
+    # TODO remove NaN values!
+
+    return inputs, targets
 
 
 class MoodDataSet(Dataset):
@@ -46,6 +63,7 @@ class MoodDataSet(Dataset):
         window_start = np.random.randint(low=0, high=self.data[0].shape[-1] - self.input_length)
         window_end = window_start + self.input_length
         return self.data[0][idx, :, window_start:window_end], self.data[1][idx, window_start:window_end]
+
 
 if __name__ == "__main__":
     data = pd.read_csv("dataset_mood_smartphone.csv")
