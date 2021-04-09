@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 import dataloader
 
 # models
-from lstm import biLSTM
+from lstm import MoodPredictionModel
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -27,18 +27,18 @@ def train(config):
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-        data_loader = DataLoader(dataloader.MoodDataSet(config.data_path, config.input_length),
+        data_loader = DataLoader(dataloader.MoodDataSet(config.data_path),
                                  batch_size=config.batch_size, shuffle=True)
 
         # Initialize the device which to run the model on
         device = torch.device(config.device)
         print(device)
 
-        print("Initializing bidirectional LSTM model...")
-        model = biLSTM(
+        print("Initializing LSTM model...")
+        # TODO Init Model
+        model = MoodPredictionModel(
             config.input_length, config.input_dim,
-            config.num_hidden, config.num_classes,
-            config.batch_size, device
+            config.num_hidden
         ).to(device)
 
         # Setup the loss and optimizer
@@ -148,11 +148,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Model params
-    parser.add_argument('--input_length', type=int, default=6,
+    parser.add_argument('--input_length', type=int, default=5,
                         help='Length of an input sequence')
-    parser.add_argument('--input_dim', type=int, default=1,
+    parser.add_argument('--input_dim', type=int, default=7,
                         help='Dimensionality of input sequence')
-    parser.add_argument('--num_classes', type=int, default=10,
+    parser.add_argument('--num_classes', type=int, default=20,
                         help='Dimensionality of output sequence')
     parser.add_argument('--num_hidden', type=int, default=256,
                         help='Number of hidden units in the model')
