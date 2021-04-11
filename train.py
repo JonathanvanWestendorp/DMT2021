@@ -12,7 +12,6 @@ from torch.utils.data import DataLoader
 
 import dataloader
 
-# models
 from lstm import MoodPredictionModel
 
 import numpy as np
@@ -35,52 +34,42 @@ def train(config):
         print(device)
 
         print("Initializing LSTM model...")
-        # TODO Init Model
-        model = MoodPredictionModel(
-            config.input_length, config.input_dim,
-            config.num_hidden
-        ).to(device)
+        model = MoodPredictionModel(config.input_length,
+                                    config.input_dim,
+                                    config.num_hidden,
+                                    config.num_layers).to(device)
 
         # Setup the loss and optimizer
-        loss_function = torch.nn.NLLLoss()
+        loss_function = torch.nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
         # Keep track of accuracy and loss
         accuracy_list, loss_list = [], []
         for step, (batch_inputs, batch_targets) in enumerate(data_loader):
-
-            print(batch_inputs.shape, batch_targets.shape)
             # Only for time measurement of step through network
             t1 = time.time()
 
             # Move to GPU
-            batch_inputs = batch_inputs.to(device)     # [batch_size, seq_length,1]
-            batch_targets = batch_targets.to(device)   # [batch_size]
+            batch_inputs = batch_inputs.to(device)                         # [batch_size, seq_length, n_features]
+            batch_targets = torch.unsqueeze(batch_targets, 1).to(device)   # [batch_size]
 
             # Reset for next iteration
             model.zero_grad()
 
             # Forward pass
-            log_probs = model(batch_inputs)
+            out = model(batch_inputs)
 
             # Compute the loss, gradients and update network parameters
-            loss = loss_function(log_probs, batch_targets.long())
+            loss = loss_function(out, batch_targets)
             loss.backward()
 
-            #######################################################################
-            # Check for yourself: what happens here and why?
-            #######################################################################
             torch.nn.utils.clip_grad_norm_(model.parameters(),
                                            max_norm=config.max_norm)
-            #######################################################################
 
             optimizer.step()
 
-            predictions = torch.argmax(log_probs, dim=1)
-            correct = (predictions == batch_targets).sum().item()
-            accuracy = correct / log_probs.size(0)
-
-            # print(predictions[0, ...], batch_targets[0, ...])
+            correct = (abs(out - batch_targets) < config.corr_thres).sum().item()
+            accuracy = correct / out.size(0)
 
             # Just for time measurement
             t2 = time.time()
@@ -89,7 +78,7 @@ def train(config):
             accuracy_list.append(accuracy)
             loss_list.append(float(loss))
 
-            if step % 60 == 0:
+            if step % 50 == 0:
 
                 print("[{}] Train Step {:04d}/{:04d}, Batch Size = {}, \
                        Examples/Sec = {:.2f}, "
@@ -116,11 +105,11 @@ def train(config):
     loss_mean, loss_std = np.mean(loss_lists, axis=0), np.std(loss_lists, axis=0)
 
     # Plotting
-    x = np.arange(config.train_steps + 1)
+    x = np.arange(len(accuracy_lists[0]))
 
     fig, axs = plt.subplots(1, 2)
 
-    fig.suptitle(f"Accuracy and Loss for {config.model_type} with T = {config.input_length}", fontsize=16)
+    fig.suptitle(f"Accuracy and Loss for with T = {config.input_length}", fontsize=16)
 
     axs[0].fill_between(x, acc_mean - acc_std, acc_mean + acc_std, alpha=.4, label="Acc std.")
     axs[0].plot(x, acc_mean, label="Acc mean")
@@ -138,9 +127,6 @@ def train(config):
 
     plt.show()
 
-    ###########################################################################
-    ###########################################################################
-
 
 if __name__ == "__main__":
 
@@ -152,19 +138,21 @@ if __name__ == "__main__":
                         help='Length of an input sequence')
     parser.add_argument('--input_dim', type=int, default=7,
                         help='Dimensionality of input sequence')
-    parser.add_argument('--num_classes', type=int, default=20,
-                        help='Dimensionality of output sequence')
     parser.add_argument('--num_hidden', type=int, default=256,
                         help='Number of hidden units in the model')
+    parser.add_argument('--num_layers', type=int, default=2,
+                        help='Number of hidden layers in the model')
 
     # Training params
     parser.add_argument('--batch_size', type=int, default=4,
                         help='Number of examples to process in a batch')
     parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='Learning rate')
-    parser.add_argument('--train_steps', type=int, default=3000,
+    parser.add_argument('--train_steps', type=int, default=1000,
                         help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=10.0)
+    parser.add_argument('--corr_thres', type=float, default=.75,
+                        help='Threshold for correctness of output')
 
     # Misc params
     parser.add_argument('--device', type=str, default="cuda:0",

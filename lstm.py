@@ -4,22 +4,19 @@ from __future__ import print_function
 
 import torch.nn as nn
 
-# TODO Make Model
+
 class MoodPredictionModel(nn.Module):
-
-    def __init__(self, batch_size, seq_length, vocabulary_size,
-                 lstm_num_hidden=256, lstm_num_layers=2, device='cuda:0'):
-
+    def __init__(self, seq_length, n_features, n_hidden, n_layers):
         super(MoodPredictionModel, self).__init__()
 
-        embedding_dim = round(.5 * lstm_num_hidden)
+        self.lstm = nn.LSTM(input_size=n_features,
+                            hidden_size=n_hidden,
+                            num_layers=n_layers,
+                            batch_first=True)
 
-        self.encode = nn.Embedding(vocabulary_size, embedding_dim)
-        self.lstm = nn.LSTM(embedding_dim, lstm_num_hidden, lstm_num_layers)
-        self.decode = nn.Linear(lstm_num_hidden, vocabulary_size)
+        self.l_linear = nn.Linear(n_hidden * seq_length, 1)
 
     def forward(self, x):
-        x = self.encode(x)
-        h, state = self.lstm(x)
-        p = self.decode(h).permute(0, 2, 1)
-        return p
+        lstm_out, _ = self.lstm(x)
+        x = lstm_out.contiguous().view(x.size()[0], -1)
+        return self.l_linear(x)
