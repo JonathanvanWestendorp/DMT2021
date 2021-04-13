@@ -26,7 +26,7 @@ def train(config):
         np.random.seed(seed)
         torch.manual_seed(seed)
 
-        data_loader = DataLoader(dataloader.MoodDataSet(config.data_path),
+        data_loader = DataLoader(dataloader.MoodDataSet(config.data_path, []),
                                  batch_size=config.batch_size, shuffle=True)
 
         # Initialize the device which to run the model on
@@ -58,7 +58,6 @@ def train(config):
 
             # Forward pass
             out = model(batch_inputs)
-
             # Compute the loss, gradients and update network parameters
             loss = loss_function(out, batch_targets)
             loss.backward()
@@ -98,6 +97,9 @@ def train(config):
         accuracy_lists.append(accuracy_list)
         loss_lists.append(loss_list)
 
+        # Save trained model
+        torch.save(model.state_dict(), f"./trained_model_seed_{seed}")
+
     accuracy_lists = np.array(accuracy_lists)
     loss_lists = np.array(loss_lists)
 
@@ -109,7 +111,7 @@ def train(config):
 
     fig, axs = plt.subplots(1, 2)
 
-    fig.suptitle(f"Accuracy and Loss for with T = {config.input_length}", fontsize=16)
+    #fig.suptitle(f"Accuracy and Loss for with T = {config.input_length}", fontsize=16)
 
     axs[0].fill_between(x, acc_mean - acc_std, acc_mean + acc_std, alpha=.4, label="Acc std.")
     axs[0].plot(x, acc_mean, label="Acc mean")
@@ -125,6 +127,7 @@ def train(config):
     axs[1].set_title("Loss")
     axs[1].legend()
 
+    plt.savefig("accandloss", dpi=500)
     plt.show()
 
 
@@ -148,7 +151,7 @@ if __name__ == "__main__":
                         help='Number of examples to process in a batch')
     parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='Learning rate')
-    parser.add_argument('--train_steps', type=int, default=1000,
+    parser.add_argument('--train_steps', type=int, default=2000,
                         help='Number of training steps')
     parser.add_argument('--max_norm', type=float, default=10.0)
     parser.add_argument('--corr_thres', type=float, default=.75,

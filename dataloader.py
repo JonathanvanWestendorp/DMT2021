@@ -25,7 +25,7 @@ def window_split(x, window_size=5):
     return torch.stack(splits[:-1])
 
 
-def process(data):
+def process(data, influence=[]):
     inputs, targets = [], []
     data.time = pd.to_datetime(data.time)
     for patient_id in data.id.unique():
@@ -38,6 +38,10 @@ def process(data):
 
             patient_feature_data = patient_data[patient_data.variable == feature].append(outer_rows)
 
+            # Set an variable to 0, to see its influence on the prediction
+            for var in influence:
+                patient_feature_data.loc[(patient_feature_data.variable == var), 'value'] = 0
+
             if feature == "mood":
                 # Discard first 5 moods because there's not enough prior feature information for these
                 patient_mood_grouped = patient_feature_data.resample('D', on='time').value.mean()[5:]
@@ -48,7 +52,6 @@ def process(data):
                 patient_inputs.append(patient_feature_grouped.tolist())
 
         inputs.append(window_split(torch.tensor(patient_inputs).T))
-
     inputs = torch.cat(inputs)
     targets = torch.cat(targets)
 
@@ -61,8 +64,8 @@ def process(data):
 
 
 class MoodDataSet(Dataset):
-    def __init__(self, csv_file):
-        self.data = process(pd.read_csv(csv_file))
+    def __init__(self, csv_file, influence):
+        self.data = process(pd.read_csv(csv_file), influence)
 
     def __len__(self):
         return len(self.data[1])
