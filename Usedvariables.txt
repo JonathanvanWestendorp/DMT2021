@@ -1,6 +1,42 @@
 ['mood', 'circumplex.arousal', 'circumplex.valence', 'activity', 'screen',
  'appCat.communication', 'appCat.entertainment', 'appCat.social']
 
+DataPunten used:
+          0         1         2           3          4          5          6
+0  0.181818  0.212121  0.081548  252.882660  58.600784  58.476002  73.430092
+1  0.190909  0.206061  0.081548  252.882660  58.600784  58.476002  73.430092
+2  0.200000  0.200000  0.134050  153.665878  55.095528  53.023998  75.141670
+3  0.600000  0.500000  0.236880   47.613651  51.697063  46.661999  36.636002
+4  0.200000  0.800000  0.142741   67.067642  53.442032  31.448668  50.046612
+
+Nul Meting (alle features):
+6.6855
+
+['circumplex.arousal', 'circumplex.valence', 'activity', 'screen',
+ 'appCat.communication', 'appCat.entertainment', 'appCat.social']
+1.2260
+
+['circumplex.arousal', 'circumplex.valence', 'activity']
+6.8726
+
+['screen', 'appCat.communication', 'appCat.entertainment', 'appCat.social']
+1.6389
+
+['appCat.communication', 'appCat.entertainment', 'appCat.social']
+6.5640
+
+['screen', 'appCat.communication', 'appCat.entertainment']
+5.9396
+
+['screen', 'appCat.communication']
+6.4873
+
+['screen', 'appCat.entertainment']
+6.2973
+
+['appCat.communication', 'appCat.entertainment']
+6.6127
+
 Nul meting:
 tensor([[6.8832],
         [6.7402],
