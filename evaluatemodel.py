@@ -11,11 +11,13 @@ import argparse
 INFLUENCE = ['appCat.communication', 'appCat.entertainment']
 def accuracy(config):
     data = pd.read_csv(config.data_path)
-    inputs, targets = dataloader.process(data, window_size=2)
+    inputs, targets = dataloader.process(data, window_size=5)
+
+    device = torch.device(config.device)
 
     n = len(targets)
-    train_inputs, train_targets = inputs[:round(.8 * n)], targets[:round(.8 * n)]
-    test_inputs, test_targets = inputs[round(.8 * n):], targets[round(.8 * n):]
+    train_inputs, train_targets = inputs[:round(.8 * n)].to(device), targets[:round(.8 * n)].to(device)
+    test_inputs, test_targets = inputs[round(.8 * n):].to(device), targets[round(.8 * n):].to(device)
 
     print("Initializing LSTM model...")
     model = MoodPredictionModel(config.input_length,
@@ -28,17 +30,17 @@ def accuracy(config):
     model.eval()
     print(model)
 
-    train_out = model(train_inputs)
-    test_out = model(test_inputs)
+    train_out = model(train_inputs).squeeze()
+    test_out = model(test_inputs).squeeze()
 
-    train_diff = torch.tensor(train_out) == train_targets
-    test_diff = torch.tensor(test_out) == test_targets
+    correct_train = (abs(train_out - train_targets) < config.corr_thres).sum().item()
+    train_accuracy = correct_train / train_out.size(0)
 
-    train_accuracy = sum(train_diff) / len(train_diff)
-    test_accuracy = sum(test_diff) / len(test_diff)
+    correct_test = (abs(test_out - test_targets) < config.corr_thres).sum().item()
+    test_accuracy = correct_test / test_out.size(0)
 
-    print(f"Accuracy on training set: {train_accuracy}")
-    print(f"Accuracy on testing set: {test_accuracy}")
+    print(f"Accuracy on training set: {train_accuracy*100}%")
+    print(f"Accuracy on testing set: {test_accuracy*100}%")
 
 def evaluate(config):
     data_loader = DataLoader(dataloader.MoodDataSet(config.data_path, INFLUENCE),
@@ -81,7 +83,7 @@ if __name__ == "__main__":
                         help='Number of hidden units in the model')
     parser.add_argument('--num_layers', type=int, default=2,
                         help='Number of hidden layers in the model')
-    parser.add_argument('--saved_model', type=str, default='./trained_model_seed_123',
+    parser.add_argument('--saved_model', type=str, default='./trained_model_seed_546_80perc',
                         help='Path of model to load')
     # Dataloader params
     parser.add_argument('--batch_size', type=int, default=1,
@@ -92,8 +94,9 @@ if __name__ == "__main__":
                         help="Training device 'cpu' or 'cuda:0'")
     parser.add_argument('--data_path', type=str, default="./dataset_mood_smartphone.csv",
                         help='Data path')
-
+    parser.add_argument('--corr_thres', type=float, default=.75,
+                        help='Threshold for correctness of output')
     config = parser.parse_args()
 
-    evaluate(config)
+    #evaluate(config)
     accuracy(config)
