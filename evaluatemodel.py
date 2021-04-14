@@ -9,6 +9,36 @@ import argparse
 
 # Variables to set to 0 to evaluate it's influence on the prediction
 INFLUENCE = ['appCat.communication', 'appCat.entertainment']
+def accuracy(config):
+    data = pd.read_csv(config.data_path)
+    inputs, targets = dataloader.process(data, window_size=2)
+
+    n = len(targets)
+    train_inputs, train_targets = inputs[:round(.8 * n)], targets[:round(.8 * n)]
+    test_inputs, test_targets = inputs[round(.8 * n):], targets[round(.8 * n):]
+
+    print("Initializing LSTM model...")
+    model = MoodPredictionModel(config.input_length,
+                                config.input_dim,
+                                config.num_hidden,
+                                config.num_layers).to(device)
+
+    print("Loading model parameters from trained model")
+    model.load_state_dict(torch.load(config.saved_model))
+    model.eval()
+    print(model)
+
+    train_out = model(train_inputs)
+    test_out = model(test_inputs)
+
+    train_diff = torch.tensor(train_out) == train_targets
+    test_diff = torch.tensor(test_out) == test_targets
+
+    train_accuracy = sum(train_diff) / len(train_diff)
+    test_accuracy = sum(test_diff) / len(test_diff)
+
+    print(f"Accuracy on training set: {train_accuracy}")
+    print(f"Accuracy on testing set: {test_accuracy}")
 
 def evaluate(config):
     data_loader = DataLoader(dataloader.MoodDataSet(config.data_path, INFLUENCE),
@@ -66,3 +96,4 @@ if __name__ == "__main__":
     config = parser.parse_args()
 
     evaluate(config)
+    accuracy(config)
