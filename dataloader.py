@@ -14,7 +14,7 @@ SKIP = ["call", "sms", "appCat.weather", "appCat.utilities", "appCat.unknown", "
 
 # TODO Mood interpolation? Missing finance, game, office attributes?
 
-def window_split(x, window_size=5):
+def window_split(x, window_size):
     length = x.size(0)
     splits = []
 
@@ -25,7 +25,7 @@ def window_split(x, window_size=5):
     return torch.stack(splits[:-1])
 
 
-def process(data, influence=[]):
+def process(data, influence=[], window_size=5):
     inputs, targets = [], []
     data.time = pd.to_datetime(data.time)
     for patient_id in data.id.unique():
@@ -44,14 +44,14 @@ def process(data, influence=[]):
 
             if feature == "mood":
                 # Discard first 5 moods because there's not enough prior feature information for these
-                patient_mood_grouped = patient_feature_data.resample('D', on='time').value.mean()[5:]
+                patient_mood_grouped = patient_feature_data.resample('D', on='time').value.mean()[window_size:]
                 targets.append(torch.tensor(patient_mood_grouped.tolist()))
             else:
                 # Linear interpolation for missing data
                 patient_feature_grouped = patient_feature_data.resample('D', on='time').value.mean().interpolate(method='linear', limit_direction='both')
                 patient_inputs.append(patient_feature_grouped.tolist())
 
-        inputs.append(window_split(torch.tensor(patient_inputs).T))
+        inputs.append(window_split(torch.tensor(patient_inputs).T, window_size))
     inputs = torch.cat(inputs)
     targets = torch.cat(targets)
 
