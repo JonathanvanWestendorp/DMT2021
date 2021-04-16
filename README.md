@@ -1,5 +1,6 @@
 # DMT2021
 ### Assignment 1 - advanced
+Dylan Prins, Naomi Tilon and Jonathan van Westendorp
 
 ## File explanations
 - **Usedvariables.txt:** LSTM results with certain variable withheld
@@ -15,3 +16,5 @@
 - **trained_model_seed_\*** Saved pre-trained LSTM models. Multiple seeds and history sizes have been tested.
   - W10: Window size of 10 -> a history of 10 days
   - seed_123 -> seed 123 used for random number generations in numpy and pytorch
+
+Feel free to experiment with every model implementation. Code should run directly without error. See specific files for specific run instructions.
