@@ -23,7 +23,7 @@ def train(config):
     torch.manual_seed(config.seed)
 
     print("Loading data...")
-    dataset = PropRanking(config.split_ratio, config.train_path, config.test_path)
+    dataset = PropRanking(config.split_ratio, config.train_path)
     train_data = dataset.get_train()
     valid_data = dataset.get_validation()
 
@@ -36,7 +36,7 @@ def train(config):
     print("Initializing neural model...")
     model = NeuralModule(train_data.num_features, 1).to(device)
 
-    # Setup the loss and optimizer TODO: Decide if MSE appropriate
+    # Setup the loss and optimizer
     loss_function = torch.nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
@@ -48,13 +48,14 @@ def train(config):
 
         # Move to GPU
         batch_inputs = batch_inputs.to(device)
-        batch_targets = batch_targets.to(device)
+        batch_targets = batch_targets.unsqueeze(1).to(device)
 
         # Reset for next iteration
         model.zero_grad()
 
         # Forward pass
         out = model(batch_inputs)
+        # print(out[0].item(), batch_targets[0].item())
         # Compute the loss, gradients and update network parameters
         loss = loss_function(out, batch_targets)
         loss.backward()
@@ -67,7 +68,7 @@ def train(config):
 
         loss_list.append(float(loss))
 
-        if step % 50 == 0:
+        if step % 100 == 0:
 
             print("[{}] Train Step {:04d}, Batch Size = {}, \
                    Examples/Sec = {:.2f}, Loss = {:.3f}".format(
@@ -78,10 +79,11 @@ def train(config):
     print('Done training.')
 
     # Save trained model
-    torch.save(model.state_dict(), f"./pointwise_seed_{config.seed}")
+    torch.save(model.state_dict(), f"../Models/pointwise_seed{config.seed}")
 
     plt.plot(loss_list)
     plt.show()
+
 
 if __name__ == "__main__":
 
@@ -91,7 +93,7 @@ if __name__ == "__main__":
     # Training params
     parser.add_argument('--split_ratio', type=float, default=.8,
                         help='Ratio between training set and validation set')
-    parser.add_argument('--batch_size', type=int, default=128,
+    parser.add_argument('--batch_size', type=int, default=512,
                         help='Number of examples to process in a batch')
     parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help='Learning rate')
@@ -99,12 +101,10 @@ if __name__ == "__main__":
     # Misc params
     parser.add_argument('--device', type=str, default="cuda:0",
                         help="Training device 'cpu' or 'cuda:0'")
-    parser.add_argument('--summary_path', type=str, default="./summaries/",
+    parser.add_argument('--summary_path', type=str, default="../summaries/",
                         help='Output path for summaries')
     parser.add_argument('--train_path', type=str, default="../Data/training_set_VU_DM.pkl",
                         help='Train data path')
-    parser.add_argument('--test_path', type=str, default="../Data/test_set_VU_DM.pkl",
-                        help='Test data path')
 
     # Change to random for random seed
     parser.add_argument('--seed', type=int, default=0,

@@ -8,8 +8,8 @@ def _process(raw, split_ratio):
 
     raw = raw.fillna(0)
 
-    # Calculate relevance labels TODO: Improve this... Maybe classification instead of regression
-    targets = torch.tensor(1 / raw.position + raw.click_bool + raw.booking_bool, dtype=torch.float)
+    # Calculate relevance labels TODO: Improve this...
+    targets = torch.tensor(raw.click_bool + raw.booking_bool, dtype=torch.float)
 
     # Irrelevant for learning ranking or used for target calculation or not present in test set
     to_remove = ['srch_id', 'date_time', 'position', 'click_bool', 'booking_bool', 'gross_bookings_usd']
@@ -17,12 +17,12 @@ def _process(raw, split_ratio):
 
     train_targets, valid_targets = targets[:split], targets[split:]
     train_features, valid_features = features[:split], features[split:]
-
+    # TODO change valid split to be grouped based on srch_id
     return (train_features, train_targets), (valid_features, valid_targets)
 
 
 def _process_test(raw):
-    return torch.tensor(raw.drop(['srch_id', 'date_time'], axis=1).values)
+    return raw.drop(['date_time'], axis=1).fillna(0)
 
 
 class PropRankingSplit(Dataset):
@@ -39,9 +39,12 @@ class PropRankingSplit(Dataset):
 
 
 class PropRanking(object):
-    def __init__(self, split_ratio, train_path, test_path):
-        self.train, self.valid = _process(pd.read_pickle(train_path), split_ratio)
-        self.test = _process_test(pd.read_pickle(test_path))
+    def __init__(self, split_ratio=.8, train_path=None, test_path=None):
+        if train_path:
+            self.train, self.valid = _process(pd.read_pickle(train_path), split_ratio)
+
+        if test_path:
+            self.test = _process_test(pd.read_pickle(test_path))
 
     def get_train(self):
         return PropRankingSplit(self.train, 'train')
@@ -51,7 +54,3 @@ class PropRanking(object):
 
     def get_test(self):
         return self.test
-
-
-if __name__ == '__main__':
-    _process(pd.read_pickle('../Data/training_set_VU_DM.pkl'), .8)
