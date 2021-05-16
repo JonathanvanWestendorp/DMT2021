@@ -29,12 +29,11 @@ def train(config):
     valid_data = dataset.get_validation()
 
     train_data_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
-    valid_data_loader = DataLoader(valid_data, batch_size=config.batch_size, shuffle=True)
+    valid_data_loader = DataLoader(valid_data, batch_size=1, shuffle=True)
 
     device = torch.device(config.device)
-    print(f"Training device: {device}")
 
-    print("Initializing neural model...")
+    print(f"Initializing neural model on {device}...")
     model = NeuralModule(train_data.num_features, 1).to(device)
 
     # Setup the loss and optimizer
@@ -74,9 +73,12 @@ def train(config):
                         datetime.now().strftime("%Y-%m-%d %H:%M"), e + 1, step,
                         config.batch_size, examples_per_second, loss
                         ))
-                if step % 1000 == 0:
-                    with torch.no_grad:
-                        print(evaluate_model(model, valid_data_loader))
+                if step % 3500 == 0:
+                    print("Evaluating model...")
+                    with torch.no_grad():
+                        print(f"nDCG@5: {evaluate_model(model, valid_data_loader, config.k, device)}\n")
+    with torch.no_grad():
+        print(f"nDCG@5: {evaluate_model(model, valid_data_loader, config.k, device)}\n")
 
     print('Done training.')
 
@@ -93,7 +95,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     # Training params
-    parser.add_argument('--split_ratio', type=float, default=1,
+    parser.add_argument('--split_ratio', type=float, default=.8,
                         help='Ratio between training set and validation set')
     parser.add_argument('--batch_size', type=int, default=512,
                         help='Number of examples to process in a batch')
@@ -108,6 +110,8 @@ if __name__ == "__main__":
                         help='Output path for summaries')
     parser.add_argument('--train_path', type=str, default="../Data/training_set_VU_DM.pkl",
                         help='Train data path')
+    parser.add_argument('--k', type=int, default=5,
+                        help='Truncate nDCG calculation')
 
     # Change to random for random seed
     parser.add_argument('--seed', type=int, default=0,

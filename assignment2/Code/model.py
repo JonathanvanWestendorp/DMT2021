@@ -8,7 +8,6 @@ class NeuralModule(nn.Module):
             nn.Linear(num_features, 10),
             nn.ReLU(),
             nn.Linear(10, output_dim))
-            # nn.ReLU())
 
     def forward(self, x):
         return self.net(x)

@@ -37,7 +37,7 @@ def _process_train(raw):
 def _process_valid(raw):
     # Calculate relevance labels
     grouped_targets = pd.concat([raw.srch_id, raw.click_bool + raw.booking_bool], axis=1).groupby('srch_id')
-    targets = [torch.tensor(t.drop('srch_id', axis=1).values, dtype=torch.float) for _, t in grouped_targets]
+    targets = [t.drop('srch_id', axis=1).values for _, t in grouped_targets]
 
     # The same features are dropped for the valid set except for srch_id because we need that for grouping
     to_remove = ['date_time', 'position', 'click_bool', 'booking_bool']
