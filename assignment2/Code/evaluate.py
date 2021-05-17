@@ -11,7 +11,7 @@ def evaluate_model(model, valid_data_loader, k, device):
     scores = []
     for inputs, targets in valid_data_loader:
         out = model(inputs.to(device))
-        scores.append(ndcg_score(targets[0].T.numpy(), out[0].T.cpu().numpy(), k=k))
+        scores.append(ndcg_score(targets.numpy(), out[0].T.cpu().numpy(), k=k))
 
     return np.mean(scores)
 

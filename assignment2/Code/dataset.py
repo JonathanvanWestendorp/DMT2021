@@ -1,4 +1,6 @@
+from os.path import isfile
 import pandas as pd
+import pickle
 import torch
 from torch.utils.data import Dataset
 
@@ -7,7 +9,19 @@ NAN_THRESH = .8
 
 
 def _process(raw, split_ratio):
-    split = round(split_ratio * len(raw))
+    if isfile('../Data/train_features.pkl') and isfile('../Data/train_targets.pkl') and isfile('../Data/valid_features.pkl') and isfile('../Data/valid_targets.pkl'):
+        with open('../Data/train_features.pkl', 'rb') as f:
+            train_features = pickle.load(f)
+        with open('../Data/train_targets.pkl', 'rb') as f:
+            train_targets = pickle.load(f)
+        with open('../Data/valid_features.pkl', 'rb') as f:
+            valid_features = pickle.load(f)
+        with open('../Data/valid_targets.pkl', 'rb') as f:
+            valid_targets = pickle.load(f)
+
+        return (train_features, train_targets), (valid_features, valid_targets)
+
+    split = round(split_ratio * raw.srch_id.nunique())
 
     # Remove if to many NaN values
     raw = raw.dropna(thresh=len(raw) * NAN_THRESH, axis=1)
@@ -18,34 +32,29 @@ def _process(raw, split_ratio):
     # Increase booking weight
     raw.booking_bool = raw.booking_bool * 4
 
-    raw_train, raw_valid = raw.iloc[:split], raw.iloc[split:]
-
-    return _process_train(raw_train), _process_valid(raw_valid)
-
-
-def _process_train(raw):
-    # Calculate relevance labels
-    targets = torch.tensor(raw.click_bool + raw.booking_bool, dtype=torch.float)
-
-    # Irrelevant for learning ranking or used for target calculation or not present in test set
+    # Irrelevant features
     to_remove = ['srch_id', 'date_time', 'position', 'click_bool', 'booking_bool']
-    features = torch.tensor(raw.drop(to_remove, axis=1).values, dtype=torch.float)
 
-    return features, targets
+    features, targets = [], []
+    for _, group in raw.groupby('srch_id'):
+        feature = torch.tensor(group.drop(to_remove, axis=1).values, dtype=torch.float)
+        target = torch.tensor((group.click_bool + group.booking_bool).values, dtype=torch.float)
+        features.append(feature)
+        targets.append(target)
 
+    train_features, valid_features = features[:split], features[split:]
+    train_targets, valid_targets = targets[:split], targets[split:]
 
-def _process_valid(raw):
-    # Calculate relevance labels
-    grouped_targets = pd.concat([raw.srch_id, raw.click_bool + raw.booking_bool], axis=1).groupby('srch_id')
-    targets = [t.drop('srch_id', axis=1).values for _, t in grouped_targets]
+    with open('../Data/train_features.pkl', 'wb') as f:
+        pickle.dump(train_features, f)
+    with open('../Data/train_targets.pkl', 'wb') as f:
+        pickle.dump(train_targets, f)
+    with open('../Data/valid_features.pkl', 'wb') as f:
+        pickle.dump(valid_features, f)
+    with open('../Data/valid_targets.pkl', 'wb') as f:
+        pickle.dump(valid_targets, f)
 
-    # The same features are dropped for the valid set except for srch_id because we need that for grouping
-    to_remove = ['date_time', 'position', 'click_bool', 'booking_bool']
-
-    grouped_features = raw.drop(to_remove, axis=1).groupby('srch_id')
-    features = [torch.tensor(q.drop('srch_id', axis=1).values, dtype=torch.float) for _, q in grouped_features]
-
-    return features, targets
+    return (train_features, train_targets), (valid_features, valid_targets)
 
 
 def _process_test(raw):
@@ -57,7 +66,7 @@ class PropRankingSplit(Dataset):
     def __init__(self, data, split):
         self.split = split
         self.features, self.targets = data[0], data[1]
-        self.num_features = self.features.shape[1] if split == 'train' else self.features[0].shape[1]
+        self.num_features = self.features[0].shape[1] if len(self.features) > 0 else 0
 
     def __len__(self):
         return len(self.targets)

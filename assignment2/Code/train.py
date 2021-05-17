@@ -3,7 +3,6 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
-import time
 from datetime import datetime
 
 import torch
@@ -11,6 +10,7 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from dataset import PropRanking
+from loss_functions import pairwise_loss
 from model import NeuralModule
 from evaluate import evaluate_model
 
@@ -28,7 +28,7 @@ def train(config):
     train_data = dataset.get_train()
     valid_data = dataset.get_validation()
 
-    train_data_loader = DataLoader(train_data, batch_size=config.batch_size, shuffle=True)
+    train_data_loader = DataLoader(train_data, batch_size=1, shuffle=True)
     valid_data_loader = DataLoader(valid_data, batch_size=1, shuffle=True)
 
     device = torch.device(config.device)
@@ -37,43 +37,39 @@ def train(config):
     model = NeuralModule(train_data.num_features, 1).to(device)
 
     # Setup the loss and optimizer
-    loss_function = torch.nn.MSELoss()
+    if config.loss_func == 'pointwise':
+        loss_function = torch.nn.MSELoss()
+    elif config.loss_func == 'pairwise':
+        loss_function = pairwise_loss
+
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
     # Keep track of accuracy and loss
     loss_list = []
     for e in range(config.epochs):
         for step, (batch_inputs, batch_targets) in enumerate(train_data_loader):
-            # Only for time measurement of step through network
-            t1 = time.time()
-
             # Move to GPU
             batch_inputs = batch_inputs.to(device)
-            batch_targets = batch_targets.unsqueeze(1).to(device)
+            batch_targets = batch_targets[0].to(device)
 
             # Reset for next iteration
             model.zero_grad()
 
             # Forward pass
             out = model(batch_inputs)
-            # print(out[0].item(), batch_targets[0].item())
+
             # Compute the loss, gradients and update network parameters
-            loss = loss_function(out, batch_targets)
+            loss = loss_function(out[0].squeeze(), batch_targets)
             loss.backward()
 
             optimizer.step()
 
-            # Just for time measurement
-            t2 = time.time()
-            examples_per_second = config.batch_size / float(t2 - t1) if t2 != t1 else np.inf
-
             if step % 100 == 0:
                 loss_list.append(float(loss))
-                print("[{}] Epoch {}, Train Step {:04d}, Batch Size = {}, Examples/Sec = {:.2f}, Loss = {:.3f}".format(
-                        datetime.now().strftime("%Y-%m-%d %H:%M"), e + 1, step,
-                        config.batch_size, examples_per_second, loss
-                        ))
-                if step % 3500 == 0:
+                print("[{}] Epoch {}, Train Step {:04d}, Loss = {:.3f}".format(
+                        datetime.now().strftime("%Y-%m-%d %H:%M"), e + 1, step, loss))
+
+                if step % 3500 == 0 and step != 0:
                     print("Evaluating model...")
                     with torch.no_grad():
                         print(f"nDCG@5: {evaluate_model(model, valid_data_loader, config.k, device)}\n")
@@ -97,10 +93,10 @@ if __name__ == "__main__":
     # Training params
     parser.add_argument('--split_ratio', type=float, default=.8,
                         help='Ratio between training set and validation set')
-    parser.add_argument('--batch_size', type=int, default=512,
-                        help='Number of examples to process in a batch')
-    parser.add_argument('--learning_rate', type=float, default=1e-3,
+    parser.add_argument('--learning_rate', type=float, default=1e-2,
                         help='Learning rate')
+    parser.add_argument('--loss_func', type=str, default='pointwise',
+                        help='Loss function to use')
     parser.add_argument('--epochs', type=int, default=2, help='Number of epochs')
 
     # Misc params
