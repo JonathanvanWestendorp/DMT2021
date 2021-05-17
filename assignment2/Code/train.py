@@ -5,12 +5,11 @@ from __future__ import print_function
 import argparse
 from datetime import datetime
 
-import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
 from dataset import PropRanking
-from loss_functions import pairwise_loss
+from loss_functions import *
 from model import NeuralModule
 from evaluate import evaluate_model
 
@@ -41,6 +40,10 @@ def train(config):
         loss_function = torch.nn.MSELoss()
     elif config.loss_func == 'pairwise':
         loss_function = pairwise_loss
+    elif config.loss_func == 'pairwise_sped_up':
+        loss_function = pairwise_loss
+    else:
+        loss_function = listwise_loss
 
     optimizer = optim.Adam(model.parameters(), lr=config.learning_rate)
 
@@ -93,9 +96,9 @@ if __name__ == "__main__":
     # Training params
     parser.add_argument('--split_ratio', type=float, default=.8,
                         help='Ratio between training set and validation set')
-    parser.add_argument('--learning_rate', type=float, default=1e-2,
+    parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help='Learning rate')
-    parser.add_argument('--loss_func', type=str, default='pointwise',
+    parser.add_argument('--loss_func', type=str, default='pairwise',
                         help='Loss function to use')
     parser.add_argument('--epochs', type=int, default=2, help='Number of epochs')
 
