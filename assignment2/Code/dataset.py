@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset
 
 # Threshold for too large NaN percentage
-NAN_THRESH = .8
+NAN_THRESH = .995
 
 
 def _process(raw, split_ratio):
